@@ -292,7 +292,8 @@ class RandLANet(nn.Module):
 
 if __name__ == '__main__':
     import time
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cpu")
 
     d_in = 7
     cloud = 1000*torch.randn(1, 2**16, d_in).to(device)
