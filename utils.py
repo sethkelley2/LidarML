@@ -55,12 +55,16 @@ class LidarDataset(Dataset):
 
     def to_tensor(self):
         self.features = torch.tensor(self.features,dtype=torch.float32)
-        self.targets = torch.tensor(self.targets,dtype=torch.int16)
+        self.targets = torch.tensor(self.targets,dtype=torch.int64)
 
     def to_device(self,device):
         self.features.to(device)
 
-
+def targets_dict(targets):
+    mapper = dict()
+    for i,elem in enumerate(np.unique(targets)):
+        mapper[elem] = i
+    return mapper
 
 
 if __name__ == "__main__":
