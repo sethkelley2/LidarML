@@ -66,6 +66,14 @@ def targets_dict(targets):
         mapper[elem] = i
     return mapper
 
+def calculate_accuracy(preds,actuals):
+    preds = preds.argmax(dim=1)
+    correct = 0
+    total = preds.shape[0]
+    for i in range(preds.shape[0]):
+        if preds[i].item() == actuals[i].item():
+            correct += 1
+    return(np.round(correct/total,4))
 
 if __name__ == "__main__":
     dataset = LidarDataset("/media/aerotractai/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/BV1_Circuit_Beaver_Creek_1_READY/cloud328819ad3d77f188.las")

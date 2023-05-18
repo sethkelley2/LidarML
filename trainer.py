@@ -2,11 +2,12 @@ import torch
 import numpy as np
 from randlanet import RandLANet
 import os
-from utils import LidarDataset,targets_dict
+from utils import LidarDataset,targets_dict,calculate_accuracy
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import pickle
+from collections import Counter
 
 lidar_path = "/media/aerotractai/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/BV1_Circuit_Beaver_Creek_1_READY/cloud328819b9aee51228.las"
 dataset = LidarDataset(lidar_path)
@@ -54,6 +55,12 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
+
+        count = Counter(y.tolist())
+        print(f"the baseline accuracy is {count.most_common(1)[0][1]/sum(count.values())}")
+
+        acc = calculate_accuracy(yhat,y)
+        print(f"the model accuracy is {acc}")
 
     print(loss)
     train_loss_list.append(loss.item())
