@@ -3,7 +3,9 @@ import laspy
 import os
 from torch.utils.data import Dataset
 import torch
-
+import pandas as pd
+from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import StandardScaler,MinMaxScaler
 
 class LidarDataset(Dataset):
     ''' Dataset class for creating RandLANet compatible dataset.
@@ -13,6 +15,12 @@ class LidarDataset(Dataset):
         super().__init__()
         self.path = las_path
         self.features, self.targets = self.las_to_npy(las_path)
+
+        #normalize features to 0 mean with unit variance
+        self.scaler = MinMaxScaler()
+        self.scaler.fit(self.features)
+        self.features = self.scaler.transform(self.features)
+
         self.to_tensor()
     
     def __len__(self):
@@ -34,6 +42,8 @@ class LidarDataset(Dataset):
         blue = inFile.blue
         intensity = inFile.intensity
         data = np.column_stack((x, y, z, intensity, red, green, blue))
+        # data = np.column_stack((x, y, z, red, green, blue))
+
 
         # Assuming 'classification' is available in the LAS file
         classification = inFile.classification
@@ -59,12 +69,27 @@ class LidarDataset(Dataset):
 
     def to_device(self,device):
         self.features.to(device)
+        self.targets.to(device)
 
 def targets_dict(targets):
     mapper = dict()
     for i,elem in enumerate(np.unique(targets)):
         mapper[elem] = i
     return mapper
+
+def targets_map(x):
+    fn_dict = {5:0,2:1,14:2,15:3,7:4,13:5}
+    return fn_dict[x] 
+
+def confusion(yhat,y):
+    cf_matrix = confusion_matrix(y,yhat)
+    class_names = ('5','2','14','15','7','13')
+    # Create pandas dataframe
+    try:
+        dataframe = pd.DataFrame(cf_matrix, index=class_names, columns=class_names)
+        print(dataframe)
+    except:
+        print(cf_matrix)
 
 def calculate_accuracy(preds,actuals):
     preds = preds.argmax(dim=1)
