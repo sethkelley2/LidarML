@@ -8,35 +8,44 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import pickle
 from collections import Counter
+from sklearn.preprocessing import StandardScaler,MinMaxScaler
 
-lidar_path = "/media/aerotractai/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fa4732de01.las"
-dataset = LidarDataset(lidar_path)
+dataset1 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fa4732de01.las")
+# dataset2 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c10c3326d1e7.las")
+# dataset3 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520ce2b194e0e4c.las")
+# dataset4 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520ce5a6804b135.las")
+# dataset5 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520ce9d3d522890.las")
+#dataset6 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520cff643ba896e.las")
+# dataset7 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6537e26edc90bd18.las")
 
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-device = torch.device("cuda")
-dataset.to_device(device)
-dataloader = DataLoader(dataset, batch_size=90000)
+data = [dataset1]#,dataset4,dataset5,dataset6,dataset7]
+device = torch.device("cpu")
 
 #model parameters
-d_in = dataset.features.shape[1]
-num_classes = np.unique(dataset.targets).shape[0]
+d_in = dataset1.features.shape[1]
+num_classes = np.unique(dataset1.targets).shape[0]
 
 down_sampling = 2
-num_neighbors = 50
+num_neighbors = 16
 
 #model training config
 model = RandLANet(d_in, num_classes, num_neighbors, down_sampling, device)
-weights = [1,8,2,2,2]
+
+weights = [1,1,8,8,8]
 class_weights = torch.FloatTensor(weights)
-criterion = nn.CrossEntropyLoss(weight=class_weights).cuda()
+criterion = nn.CrossEntropyLoss(weight=class_weights)#,label_smoothing=0.3)
+# criterion = nn.NLLLoss(weight=class_weights)
 optimizer = torch.optim.Adam(model.parameters(),lr = 0.005)
-epochs = 3
+epochs = 10
 
 #validation dataset
-val_path = "/media/aerotractai/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fb86512e5b.las"
+val_path = "/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fb86512e5b.las"
 val_dataset = LidarDataset(val_path)
 val_dataset.to_device(device)
-val_dataloader = DataLoader(val_dataset,batch_size=90000)
+val_dataloader = DataLoader(val_dataset,batch_size=60000)
+
+#store predictions in rolling fashion
+stacked_preds = []
 
 #loss list
 train_loss_list = []
@@ -44,24 +53,43 @@ val_loss_list = []
 print("starting training loop")
 for epoch in range(epochs):
     print(epoch)
-    for x,y in dataloader:
-        x = x.reshape(1,-1,7).to(device)
-        y = y.apply_(targets_map).reshape(-1).to(device)
+    for set in data:
 
-        z = model(x)
-        yhat = z.squeeze(0).T
-        loss = criterion(yhat,y)
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+        set.to_device(device)
+        dataloader = DataLoader(set, batch_size=60000)
 
-        confusion(np.array(yhat.argmax(dim=1).reshape(-1).detach().cpu()),np.array(y.reshape(-1).detach().cpu()))
+        for x,y in dataloader:
 
-        count = Counter(y.tolist())
-        print(f"the baseline accuracy is {count.most_common(1)[0][1]/sum(count.values())}")
+            scaler = MinMaxScaler()
+            scaler.fit(x)
+            x = scaler.transform(x)
+            x = torch.tensor(x,dtype=torch.float32)
 
-        acc = calculate_accuracy(yhat,y)
-        print(f"the model accuracy in training is {acc}")
+            x = x.reshape(1,-1,11).to(device)
+            y = y.apply_(targets_map).reshape(-1).to(device)#.apply_(label_smoothing)
+
+            z = model(x)
+            yhat = z.squeeze(0).T
+            loss = criterion(yhat,y)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            #rolling stack of predictions
+            if len(stacked_preds) >= 30:
+                stacked_preds.insert(0,(scaler.inverse_transform(x.reshape((-1,11))),yhat))
+                stacked_preds.pop()
+            else:
+                stacked_preds.insert(0,(x,yhat))
+
+
+            confusion(np.array(yhat.argmax(dim=1).reshape(-1).detach().cpu()),np.array(y.reshape(-1).detach().cpu()))
+
+            count = Counter(y.tolist())
+            print(f"the baseline accuracy is {count.most_common(1)[0][1]/sum(count.values())}")
+
+            acc = calculate_accuracy(yhat,y)
+            print(f"the model accuracy in training is {acc}")
 
     print(loss)
     train_loss_list.append(loss.item())

@@ -6,6 +6,8 @@ import torch
 import pandas as pd
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
+from typing import Tuple,List,Dict
+import matplotlib.pyplot as plt
 
 class LidarDataset(Dataset):
     ''' Dataset class for creating RandLANet compatible dataset.
@@ -17,9 +19,9 @@ class LidarDataset(Dataset):
         self.features, self.targets = self.las_to_npy(las_path)
 
         #normalize features to 0 mean with unit variance
-        self.scaler = MinMaxScaler()
-        self.scaler.fit(self.features)
-        self.features = self.scaler.transform(self.features)
+        # self.scaler = MinMaxScaler()
+        # self.scaler.fit(self.features)
+        # self.features = self.scaler.transform(self.features)
 
         self.to_tensor()
     
@@ -41,8 +43,13 @@ class LidarDataset(Dataset):
         green = inFile.green
         blue = inFile.blue
         intensity = inFile.intensity
-        data = np.column_stack((x, y, z, intensity, red, green, blue))
-        # data = np.column_stack((x, y, z, red, green, blue))
+        angle = inFile.scan_angle_rank
+        num_returns = inFile.number_of_returns
+        direction = inFile.scan_direction_flag
+        edgeline = inFile.edge_of_flight_line
+
+        data = np.column_stack((x, y, z, intensity, red, green, blue,angle,num_returns,direction,edgeline))
+        # data = np.column_stack((z,red, green, blue, intensity))
 
 
         # Assuming 'classification' is available in the LAS file
@@ -78,7 +85,7 @@ def targets_dict(targets):
     return mapper
 
 def targets_map(x):
-    fn_dict = {5:0,2:1,14:2,15:3,7:4,13:5}
+    fn_dict = {5:0,2:0,14:2,15:3,7:4,13:5}
     return fn_dict[x] 
 
 def confusion(yhat,y):
@@ -90,6 +97,44 @@ def confusion(yhat,y):
         print(dataframe)
     except:
         print(cf_matrix)
+
+def visualize_preds(data_list: List[Tuple]):
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Colors to use for the classes
+    colors = ['g', 'b', 'r', 'c', 'm', 'y', 'k']
+
+    # Prepare empty lists to store points and classes
+    all_points = []
+    all_classes = []
+
+    # Iterate through each tuple in the list
+    for item in data_list:
+        data,labels = item
+        # Get the points and corresponding classes
+        points = data[:,0:3]
+        classes = torch.argmax(labels, dim=1).detach().numpy()
+
+        # Append points and classes to the respective lists
+        all_points.append(points)
+        all_classes.append(classes)
+
+    # Concatenate all points and classes
+    all_points = np.concatenate(all_points, axis=0)
+    all_classes = np.concatenate(all_classes, axis=0)
+
+    # Assigning colors to classes
+    color_map = [colors[c%len(colors)] for c in all_classes]
+
+    # Plotting the data
+    ax.scatter(all_points[:, 0], all_points[:, 1], all_points[:, 2], c=color_map, marker='o',s=1)
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    plt.show()
 
 def calculate_accuracy(preds,actuals):
     preds = preds.argmax(dim=1)

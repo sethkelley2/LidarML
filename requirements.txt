@@ -1,10 +1,18 @@
+NVIDIA DRIVER 450
+python 3.9
+11.7 cuda tool kit -> sudo apt install nvidia-cuda-toolkit
+
 cmake==3.26.3
+cycler==0.11.0
 filelock==3.12.0
 Jinja2==3.1.2
 joblib==1.2.0
-lit==16.0.3
+kiwisolver==1.4.4
+laspy==2.4.1
+lit==16.0.5
 llvmlite==0.39.1
 MarkupSafe==2.1.2
+matplotlib==3.4.2
 mpmath==1.3.0
 networkx==3.1
 numba==0.56.4
@@ -18,18 +26,20 @@ nvidia-cufft-cu11==10.9.0.58
 nvidia-curand-cu11==10.2.10.91
 nvidia-cusolver-cu11==11.4.0.1
 nvidia-cusparse-cu11==11.7.4.91
+nvidia-ml-py3==7.352.0
 nvidia-nccl-cu11==2.14.3
 nvidia-nvtx-cu11==11.7.91
+pandas==1.3.2
+Pillow==9.5.0
+pyparsing==3.0.9
+python-dateutil==2.8.2
+pytz==2023.3
 scikit-learn==1.2.2
 scipy==1.10.1
+six==1.16.0
 sympy==1.12
 threadpoolctl==3.1.0
 torch==2.0.1
-torch-points-kernels==0.7.0
+torch-points-kernels @ git+https://github.com/nicolas-chaulet/torch-points-kernels.git@512033cbf3f1091420a9a9c12ed45ca7bef477c1
 triton==2.0.0
-typing_extensions==4.5.0
-
-
-NVIDIA DRIVER 450
-python 3.9
-11.7 cuda tool kit 
+typing_extensions==4.6.1
