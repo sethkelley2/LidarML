@@ -1,7 +1,3 @@
-NVIDIA DRIVER 450
-python 3.9
-11.7 cuda tool kit -> sudo apt install nvidia-cuda-toolkit
-
 cmake==3.26.3
 cycler==0.11.0
 filelock==3.12.0

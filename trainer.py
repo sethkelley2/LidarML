@@ -10,7 +10,7 @@ import pickle
 from collections import Counter
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
 
-dataset1 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fa4732de01.las")
+dataset1 = LidarDataset("/media/aerotract/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fa4732de01.las")
 # dataset2 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c10c3326d1e7.las")
 # dataset3 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520ce2b194e0e4c.las")
 # dataset4 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520ce5a6804b135.las")
@@ -19,7 +19,7 @@ dataset1 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (
 # dataset7 = LidarDataset("/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6537e26edc90bd18.las")
 
 data = [dataset1]#,dataset4,dataset5,dataset6,dataset7]
-device = torch.device("cpu")
+device = torch.device("cuda")
 
 #model parameters
 d_in = dataset1.features.shape[1]
@@ -33,13 +33,13 @@ model = RandLANet(d_in, num_classes, num_neighbors, down_sampling, device)
 
 weights = [1,1,8,8,8]
 class_weights = torch.FloatTensor(weights)
-criterion = nn.CrossEntropyLoss(weight=class_weights)#,label_smoothing=0.3)
+criterion = nn.CrossEntropyLoss(weight=class_weights).to(device)#,label_smoothing=0.3)
 # criterion = nn.NLLLoss(weight=class_weights)
 optimizer = torch.optim.Adam(model.parameters(),lr = 0.005)
 epochs = 10
 
 #validation dataset
-val_path = "/media/lidarml/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fb86512e5b.las"
+val_path = "/media/aerotract/Archive100A/Wiggins_20230509/Aerotract (shared)/LiDARClassified/Toledo_Poles_Circuit_Yaquina_Bay_Road_1_READY/cloud6520c1fb86512e5b.las"
 val_dataset = LidarDataset(val_path)
 val_dataset.to_device(device)
 val_dataloader = DataLoader(val_dataset,batch_size=60000)
@@ -76,8 +76,8 @@ for epoch in range(epochs):
             optimizer.zero_grad()
 
             #rolling stack of predictions
-            if len(stacked_preds) >= 30:
-                stacked_preds.insert(0,(scaler.inverse_transform(x.reshape((-1,11))),yhat))
+            if len(stacked_preds) >= 80:
+                stacked_preds.insert(0,(scaler.inverse_transform(x.cpu().reshape((-1,11))),yhat))
                 stacked_preds.pop()
             else:
                 stacked_preds.insert(0,(x,yhat))
